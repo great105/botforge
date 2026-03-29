@@ -1,0 +1,35 @@
+# FastAPI + ASGI
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+python-multipart>=0.0.12
+
+# Database
+sqlalchemy[asyncio]>=2.0.36
+asyncpg>=0.30.0
+alembic>=1.14.0
+
+# Redis
+redis[hiredis]>=5.2.0
+
+# Telegram
+aiogram>=3.25.0
+
+# Validation & Settings
+pydantic>=2.10.0
+pydantic-settings>=2.7.0
+
+# Auth
+passlib[bcrypt]>=1.7.4
+python-jose[cryptography]>=3.3.0
+
+# Crypto
+cryptography>=44.0.0
+
+# AI
+anthropic>=0.42.0
+
+# SSE
+sse-starlette>=2.2.0
+
+# CORS
+# (included in FastAPI/Starlette)

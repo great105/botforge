@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import '@xyflow/react/dist/style.css';
+
+body {
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* React Flow overrides for dark theme */
+.react-flow__background {
+  background-color: #0a0a0f;
+}
+
+.react-flow__minimap {
+  background-color: #111827 !important;
+  border-radius: 8px;
+}
+
+.react-flow__controls button {
+  background-color: #1f2937 !important;
+  color: #e5e7eb !important;
+  border-color: #374151 !important;
+}
+
+.react-flow__controls button:hover {
+  background-color: #374151 !important;
+}
+
+/* Custom node styles */
+.bot-node {
+  @apply rounded-xl border border-gray-700 bg-gray-900 p-3 shadow-lg min-w-[220px] transition-shadow;
+}
+
+.bot-node.selected {
+  @apply border-brand-500 shadow-brand-500/20 shadow-xl;
+}
+
+/* Input fields */
+.input-field {
+  @apply bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2 outline-none
+         focus:border-brand-500 focus:ring-1 focus:ring-brand-500/50 transition-colors
+         placeholder-gray-500 w-full;
+}
+
+select.input-field {
+  @apply appearance-none cursor-pointer;
+}
+
+textarea.input-field {
+  @apply resize-y;
+}
