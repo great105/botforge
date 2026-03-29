@@ -99,4 +99,4 @@ export type AnyNodeData =
   | WebhookNodeData
   | VariableNodeData;
 
-export type BotNode = Node<AnyNodeData, BotNodeType>;
+export type BotNode = Node<Record<string, unknown>, BotNodeType>;
