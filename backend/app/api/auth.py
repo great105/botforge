@@ -11,7 +11,7 @@ from app.deps import CurrentUser, DbSession
 from app.models.user import User
 
 router = APIRouter()
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=12)
 
 
 class RegisterRequest(BaseModel):
@@ -51,7 +51,7 @@ async def register(body: RegisterRequest, session: DbSession):
 
     user = User(
         email=body.email,
-        password_hash=pwd_context.hash(body.password),
+        password_hash=pwd_context.hash(body.password[:72]),
     )
     session.add(user)
     await session.commit()
@@ -66,7 +66,7 @@ async def login(body: LoginRequest, session: DbSession):
     result = await session.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
 
-    if not user or not pwd_context.verify(body.password, user.password_hash):
+    if not user or not pwd_context.verify(body.password[:72], user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
     token = create_access_token(str(user.id))
