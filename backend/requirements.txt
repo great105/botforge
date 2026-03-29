@@ -15,8 +15,11 @@ redis[hiredis]>=5.2.0
 aiogram>=3.25.0
 
 # Validation & Settings
-pydantic>=2.10.0
+pydantic[email]>=2.10.0
 pydantic-settings>=2.7.0
+
+# HTTP client
+httpx>=0.28.0
 
 # Auth
 passlib[bcrypt]>=1.7.4
