@@ -23,7 +23,12 @@ export default function ChatWindow({ messages, onButtonClick }: ChatWindowProps)
                 : 'bg-[#2b5278] text-white rounded-tr-sm ml-auto'
             }`}
           >
-            <div dangerouslySetInnerHTML={{ __html: msg.text.replace(/\n/g, '<br/>') }} />
+            {msg.text.split('\n').map((line, i) => (
+              <span key={i}>
+                {i > 0 && <br />}
+                {line}
+              </span>
+            ))}
           </div>
           {msg.buttons && msg.buttons.length > 0 && (
             <div className="mt-1 space-y-1 max-w-[80%]">

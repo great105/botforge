@@ -53,3 +53,13 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Block startup with insecure defaults in production
+if not settings.DEBUG:
+    _insecure = [
+        ("SECRET_KEY", "change-me"),
+        ("ENCRYPTION_KEY", "change-me"),
+    ]
+    for name, marker in _insecure:
+        if marker in getattr(settings, name, ""):
+            raise RuntimeError(f"{name} contains default value. Set it in .env!")
