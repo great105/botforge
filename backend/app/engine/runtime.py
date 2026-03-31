@@ -1,5 +1,6 @@
 """
 BotRuntime — manages running bot instances and routes updates.
+Supports both Telegram (aiogram) and MAX (MaxBotClient) platforms.
 """
 
 import json
@@ -10,20 +11,22 @@ from aiogram import Bot
 from aiogram.client.default import DefaultBotProperties
 
 from app.engine.interpreter import GraphInterpreter
+from app.engine.max_client import MaxBotClient, normalize_max_update
+from app.engine.migration import migrate_schema
 from app.engine.state import SubscriberState
 from app.services.token_crypto import decrypt_token
 
 logger = logging.getLogger(__name__)
 
-# In-memory cache of Bot instances (token_hash → Bot)
-_bot_cache: dict[str, Bot] = {}
+# In-memory cache of Bot instances (token_hash → Bot or MaxBotClient)
+_bot_cache: dict[str, Bot | MaxBotClient] = {}
 
 
 async def get_or_create_bot(
     token_hash: str,
     redis: aioredis.Redis,
     db_session=None,
-) -> Bot | None:
+) -> Bot | MaxBotClient | None:
     """Get Bot instance from cache or create from Redis/DB."""
     if token_hash in _bot_cache:
         return _bot_cache[token_hash]
@@ -33,28 +36,40 @@ async def get_or_create_bot(
     if raw:
         data = json.loads(raw)
         token_encrypted = bytes.fromhex(data["token_encrypted"])
+        platform = data.get("platform", "telegram")
     elif db_session:
-        # Fall back to DB
         from app.services.bot_service import get_bot_by_hash
         bot_record = await get_bot_by_hash(db_session, token_hash)
         if not bot_record or bot_record.status != "running":
             return None
         token_encrypted = bot_record.token_encrypted
+        platform = getattr(bot_record, "platform", "telegram")
     else:
         return None
 
     token = decrypt_token(token_encrypted)
-    bot = Bot(token=token, default=DefaultBotProperties(parse_mode="HTML"))
+
+    if platform == "max":
+        bot = MaxBotClient(token=token)
+    else:
+        bot = Bot(token=token, default=DefaultBotProperties(parse_mode="HTML"))
+
     _bot_cache[token_hash] = bot
     return bot
 
 
+async def get_platform(token_hash: str, redis: aioredis.Redis) -> str:
+    """Get platform for a bot from Redis cache."""
+    raw = await redis.get(f"bot:{token_hash}")
+    if raw:
+        data = json.loads(raw)
+        return data.get("platform", "telegram")
+    return "telegram"
+
+
 def remove_bot_from_cache(token_hash: str):
     """Remove Bot instance from cache (on stop)."""
-    bot = _bot_cache.pop(token_hash, None)
-    if bot:
-        # Close session in background if needed
-        pass
+    _bot_cache.pop(token_hash, None)
 
 
 async def get_schema_for_bot(
@@ -69,7 +84,6 @@ async def get_schema_for_bot(
         return schema
 
     if db_session:
-        # Get from DB
         raw = await redis.get(f"bot:{token_hash}")
         if raw:
             data = json.loads(raw)
@@ -92,7 +106,12 @@ async def handle_update(
     redis: aioredis.Redis,
     db_session=None,
 ):
-    """Main entry point: route an incoming Telegram update to the right bot."""
+    """Main entry point: route an incoming update to the right bot."""
+    # Detect platform and normalize update format
+    platform = await get_platform(token_hash, redis)
+    if platform == "max":
+        update_data = normalize_max_update(update_data)
+
     bot = await get_or_create_bot(token_hash, redis, db_session)
     if not bot:
         logger.warning(f"Bot not found for hash: {token_hash}")
@@ -103,7 +122,8 @@ async def handle_update(
         logger.warning(f"Schema not found for hash: {token_hash}")
         return
 
-    # Determine chat_id and user_id from update
+    schema = migrate_schema(schema)
+
     chat_id, user_id = _extract_ids(update_data)
     if not chat_id:
         return
@@ -112,13 +132,12 @@ async def handle_update(
     interpreter = GraphInterpreter(schema=schema, bot=bot, storage=storage)
     await interpreter.process_update(chat_id=chat_id, user_id=user_id, update_data=update_data)
 
-    # Refresh bot metadata TTL in Redis
     await redis.expire(f"bot:{token_hash}", 86400)
 
 
 def _extract_ids(update_data: dict) -> tuple[int | None, int | None]:
-    """Extract chat_id and user_id from Telegram update dict."""
-    # Message
+    """Extract chat_id and user_id from normalized update dict."""
+    # Message (works for both Telegram and normalized MAX)
     message = update_data.get("message") or update_data.get("edited_message")
     if message:
         chat = message.get("chat", {})

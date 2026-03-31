@@ -4,25 +4,23 @@ import type { DelayNodeData } from '@/types/nodes';
 
 type DelayNodeType = Node<DelayNodeData, 'delay'>;
 
-const DelayNode = memo(({ data, selected }: NodeProps<DelayNodeType>) => {
-  return (
-    <>
-      <Handle type="target" position={Position.Top} className="!bg-orange-500 !w-3 !h-3" />
-      <div className={`bot-node ${selected ? 'selected' : ''}`}>
-        <div className="flex items-center gap-2 mb-2">
-          <div className="w-3 h-3 rounded-full bg-orange-500" />
-          <span className="text-xs font-semibold text-orange-400 uppercase tracking-wide">
-            Задержка
-          </span>
-        </div>
-        <div className="text-sm text-gray-300">
-          {data.delay_seconds} сек.
+const DelayNode = memo(({ data, selected }: NodeProps<DelayNodeType>) => (
+  <>
+    <Handle type="target" position={Position.Top} className="!bg-orange-500" />
+    <div className={`bot-node ${selected ? 'selected' : ''}`}>
+      <div className="bot-node-header bg-gradient-to-r from-orange-500/20 to-transparent">
+        <div className="w-2.5 h-2.5 rounded-full bg-orange-500 ring-2 ring-orange-500/30" />
+        <span className="text-xs font-bold text-orange-400 uppercase tracking-wider">Задержка</span>
+      </div>
+      <div className="bot-node-body">
+        <div className="text-2xl font-bold text-orange-300 text-center">
+          {data.delay_seconds}<span className="text-sm font-normal text-gray-500 ml-1">сек.</span>
         </div>
       </div>
-      <Handle type="source" position={Position.Bottom} className="!bg-orange-500 !w-3 !h-3" />
-    </>
-  );
-});
+    </div>
+    <Handle type="source" position={Position.Bottom} className="!bg-orange-500" />
+  </>
+));
 
 DelayNode.displayName = 'DelayNode';
 export default DelayNode;

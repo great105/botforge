@@ -19,10 +19,11 @@ class Bot(UUIDMixin, TimestampMixin, Base):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     name: Mapped[str] = mapped_column(String(100), nullable=False)
-    token_encrypted: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
-    token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    platform: Mapped[str] = mapped_column(String(20), default="telegram")  # telegram | max
+    token_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    token_hash: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True, index=True)
     bot_username: Mapped[str | None] = mapped_column(String(100))
-    status: Mapped[str] = mapped_column(String(20), default="stopped")  # stopped | running | error | sleeping
+    status: Mapped[str] = mapped_column(String(20), default="stopped", index=True)  # stopped | running | error | sleeping
     error_message: Mapped[str | None] = mapped_column(Text)
     subscribers_count: Mapped[int] = mapped_column(Integer, default=0)
 

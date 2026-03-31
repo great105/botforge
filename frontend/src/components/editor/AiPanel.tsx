@@ -12,8 +12,14 @@ export default function AiPanel({ botId, onClose }: AiPanelProps) {
   const [messages, setMessages] = useState<{ role: 'user' | 'ai'; text: string }[]>([]);
   const abortRef = useRef<AbortController | null>(null);
 
-  const { setNodes, setEdges, aiLoading, setAiLoading, aiProgress, setAiProgress } =
-    useEditorStore();
+  const nodes = useEditorStore((s) => s.nodes);
+  const edges = useEditorStore((s) => s.edges);
+  const setNodes = useEditorStore((s) => s.setNodes);
+  const setEdges = useEditorStore((s) => s.setEdges);
+  const aiLoading = useEditorStore((s) => s.aiLoading);
+  const setAiLoading = useEditorStore((s) => s.setAiLoading);
+  const aiProgress = useEditorStore((s) => s.aiProgress);
+  const setAiProgress = useEditorStore((s) => s.setAiProgress);
 
   const handleGenerate = () => {
     if (!prompt.trim() || aiLoading) return;
@@ -22,7 +28,13 @@ export default function AiPanel({ botId, onClose }: AiPanelProps) {
     setAiLoading(true);
     setAiProgress('Запуск AI-агента...');
 
-    const controller = streamAiGenerate(prompt, null, (event) => {
+    // Pass current schema so AI sees existing blocks
+    const hasContent = nodes.filter((n) => n.type !== 'note').length > 0;
+    const existingSchema = hasContent
+      ? { nodes, edges, viewport: { x: 0, y: 0, zoom: 1 } }
+      : null;
+
+    const controller = streamAiGenerate(prompt, existingSchema, (event) => {
       switch (event.type) {
         case 'tool_start':
           setAiProgress(`Шаг ${event.iteration}: ${event.tool}...`);

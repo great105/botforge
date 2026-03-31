@@ -78,22 +78,42 @@ class GraphInterpreter:
             await self.storage.clear_state(user_id)
 
     def _resolve_next_node(self, source_id: str, handle: str | None) -> dict | None:
-        """Find next node via graph edges."""
+        """Find next node via graph edges.
+
+        For button nodes: first tries to find an edge matching the specific
+        button handle. If none found, falls back to the 'default' handle.
+        This enables quiz-style flows where all buttons lead to the same next node.
+        """
+        # Try exact handle match first
         for edge in self.edges:
             if edge["source"] == source_id:
                 if handle is None or edge.get("sourceHandle") == handle:
                     return self.nodes.get(edge["target"])
+
+        # Fallback: try 'default' handle (for buttons without specific edges)
+        if handle is not None and handle != "default":
+            for edge in self.edges:
+                if edge["source"] == source_id and edge.get("sourceHandle") == "default":
+                    return self.nodes.get(edge["target"])
+
         return None
 
     def _find_start_node(self, update_data: dict) -> dict | None:
         """Find a start node that matches the incoming update."""
         for node in self.nodes.values():
-            if node["type"] == "start":
+            # New format: message node with triggers
+            if node["type"] == "message" and node["data"].get("triggers"):
+                if self._matches_trigger(node["data"]["triggers"], update_data):
+                    return node
+            # Legacy format: start node
+            elif node["type"] == "start":
                 triggers = node["data"].get("triggers", [])
                 if self._matches_trigger(triggers, update_data):
                     return node
-        # Fallback: any start node
+        # Fallback: any node with triggers
         for node in self.nodes.values():
+            if node["data"].get("triggers"):
+                return node
             if node["type"] == "start":
                 return node
         return None

@@ -32,14 +32,16 @@ async def create_bot(
     session: AsyncSession,
     user_id: uuid.UUID,
     name: str,
-    token_encrypted: bytes,
-    token_hash: str,
+    token_encrypted: bytes | None,
+    token_hash: str | None,
+    platform: str = "telegram",
 ) -> Bot:
     bot = Bot(
         user_id=user_id,
         name=name,
         token_encrypted=token_encrypted,
         token_hash=token_hash,
+        platform=platform,
     )
     session.add(bot)
     await session.commit()

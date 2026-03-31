@@ -9,8 +9,9 @@ from app.agent.tools._registry import tool
         "properties": {
             "type": {
                 "type": "string",
-                "enum": ["start", "text", "buttons", "condition", "input",
-                         "delay", "payment", "gpt", "webhook", "variable"],
+                "enum": ["message", "condition",
+                         "delay", "payment", "gpt", "webhook", "variable",
+                         "media", "random", "check_sub", "notify", "note"],
                 "description": "Тип блока",
             },
             "data": {

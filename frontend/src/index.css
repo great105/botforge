@@ -2,21 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
-@import '@xyflow/react/dist/style.css';
-
 body {
   margin: 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
-/* React Flow overrides for dark theme */
-.react-flow__background {
+/* React Flow dark theme */
+.react-flow {
   background-color: #0a0a0f;
 }
 
 .react-flow__minimap {
   background-color: #111827 !important;
   border-radius: 8px;
+}
+
+.react-flow__controls {
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .react-flow__controls button {
@@ -29,13 +32,44 @@ body {
   background-color: #374151 !important;
 }
 
+/* Connection line */
+.react-flow__connection-line {
+  stroke: #6366f1;
+  stroke-width: 2;
+}
+
+/* Handle styles — keep default size for edge alignment, enlarge visually */
+.react-flow__handle {
+  border: none !important;
+  background: inherit;
+  box-shadow: 0 0 0 3px currentColor, 0 0 0 5px rgba(0,0,0,0.3);
+  z-index: 10 !important;
+}
+
+.react-flow__handle:hover {
+  box-shadow: 0 0 0 4px currentColor, 0 0 10px currentColor, 0 0 0 6px rgba(0,0,0,0.3);
+}
+
 /* Custom node styles */
 .bot-node {
-  @apply rounded-xl border border-gray-700 bg-gray-900 p-3 shadow-lg min-w-[220px] transition-shadow;
+  @apply w-72 rounded-xl border border-gray-700/60 bg-gray-900/90 shadow-lg backdrop-blur-sm transition-shadow;
 }
 
 .bot-node.selected {
-  @apply border-brand-500 shadow-brand-500/20 shadow-xl;
+  @apply border-indigo-500 shadow-indigo-500/20 shadow-xl ring-1 ring-indigo-500/30;
+}
+
+.bot-node-header {
+  @apply relative flex items-center gap-2 px-3 py-2.5 rounded-t-xl overflow-hidden;
+}
+
+.bot-node-header::before {
+  content: '';
+  @apply absolute inset-0 opacity-20;
+}
+
+.bot-node-body {
+  @apply px-3 py-2.5 text-sm text-gray-300;
 }
 
 /* Input fields */
@@ -51,4 +85,52 @@ select.input-field {
 
 textarea.input-field {
   @apply resize-y;
+}
+
+/* Toolbar buttons */
+.toolbar-btn {
+  @apply px-2 py-1.5 text-xs text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors;
+}
+
+.toolbar-btn-active {
+  @apply text-brand-400 bg-brand-600/20;
+}
+
+/* Scrollbar styling for dark theme */
+.overflow-y-auto::-webkit-scrollbar {
+  width: 5px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background: #374151;
+  border-radius: 10px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: #4b5563;
+}
+
+/* Selection box */
+.react-flow__selection {
+  background: rgba(99, 102, 241, 0.08) !important;
+  border: 1px solid rgba(99, 102, 241, 0.4) !important;
+}
+
+/* Edge animation (flow dots visibility) */
+.react-flow__edge circle {
+  pointer-events: none;
+}
+
+/* Node drop animation — opacity only, NO transform (breaks handle measurement) */
+@keyframes nodeAppear {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.react-flow__node {
+  animation: nodeAppear 0.15s ease-out;
 }

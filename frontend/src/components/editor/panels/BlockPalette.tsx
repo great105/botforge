@@ -1,107 +1,171 @@
-import { useCallback } from 'react';
+import { useCallback, useState, useMemo } from 'react';
+import { useReactFlow } from '@xyflow/react';
 import { useEditorStore } from '@/stores/editorStore';
+import { BLOCKS, getDefaultData, type BlockDef } from '@/lib/nodeDefaults';
 import type { BotNodeType } from '@/types/nodes';
 
-const BLOCKS: { type: BotNodeType; label: string; color: string; description: string }[] = [
-  { type: 'start', label: 'Старт', color: 'bg-green-500', description: 'Точка входа' },
-  { type: 'text', label: 'Текст', color: 'bg-blue-500', description: 'Отправить сообщение' },
-  { type: 'buttons', label: 'Кнопки', color: 'bg-purple-500', description: 'Инлайн-кнопки' },
-  { type: 'condition', label: 'Условие', color: 'bg-yellow-500', description: 'Ветвление' },
-  { type: 'input', label: 'Ввод', color: 'bg-cyan-500', description: 'Запрос данных' },
-  { type: 'delay', label: 'Задержка', color: 'bg-orange-500', description: 'Пауза' },
-  { type: 'payment', label: 'Оплата', color: 'bg-emerald-500', description: 'Приём платежа' },
-  { type: 'gpt', label: 'GPT', color: 'bg-violet-500', description: 'AI-ответ' },
-  { type: 'webhook', label: 'Webhook', color: 'bg-pink-500', description: 'HTTP-запрос' },
-  { type: 'variable', label: 'Переменная', color: 'bg-amber-500', description: 'Установить значение' },
+const DND_TYPE = 'application/botforge-node';
+
+export { DND_TYPE };
+
+// Group blocks by category for better organization
+const CATEGORIES: { label: string; types: BotNodeType[] }[] = [
+  { label: 'Основные', types: ['message', 'condition', 'delay', 'variable'] },
+  { label: 'Интеграции', types: ['gpt', 'knowledge', 'webhook', 'payment'] },
+  { label: 'Медиа и проверки', types: ['media', 'check_sub', 'random'] },
+  { label: 'Утилиты', types: ['notify', 'note'] },
 ];
 
 export default function BlockPalette() {
   const addNode = useEditorStore((s) => s.addNode);
-  const nodes = useEditorStore((s) => s.nodes);
+  const setSelectedNode = useEditorStore((s) => s.setSelectedNode);
+  const { screenToFlowPosition } = useReactFlow();
+  const [dragging, setDragging] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
 
-  const handleAdd = useCallback(
+  const filteredCategories = useMemo(() => {
+    if (!search.trim()) return CATEGORIES;
+
+    const q = search.toLowerCase();
+    return CATEGORIES
+      .map((cat) => ({
+        ...cat,
+        types: cat.types.filter((type) => {
+          const block = BLOCKS.find((b) => b.type === type);
+          if (!block) return false;
+          return (
+            block.label.toLowerCase().includes(q) ||
+            block.description.toLowerCase().includes(q) ||
+            block.type.toLowerCase().includes(q)
+          );
+        }),
+      }))
+      .filter((cat) => cat.types.length > 0);
+  }, [search]);
+
+  const handleDragStart = useCallback(
+    (e: React.DragEvent, type: BotNodeType) => {
+      e.dataTransfer.setData(DND_TYPE, type);
+      e.dataTransfer.effectAllowed = 'move';
+      setDragging(type);
+    },
+    [],
+  );
+
+  const handleDragEnd = useCallback(() => {
+    setDragging(null);
+  }, []);
+
+  const handleClick = useCallback(
     (type: BotNodeType) => {
+      const position = screenToFlowPosition({
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 2,
+      });
       const id = `node_${Date.now()}`;
-      const y = nodes.length * 150 + 50;
-
-      const defaultData: Record<string, unknown> = { label: type.charAt(0).toUpperCase() + type.slice(1) };
-
-      switch (type) {
-        case 'start':
-          defaultData.triggers = ['command:/start'];
-          break;
-        case 'text':
-          defaultData.text = '';
-          defaultData.parse_mode = 'HTML';
-          break;
-        case 'buttons':
-          defaultData.text = 'Выберите:';
-          defaultData.buttons = [{ text: 'Кнопка 1', output_handle: 'btn_1' }];
-          defaultData.layout = 'vertical';
-          break;
-        case 'condition':
-          defaultData.variable = '';
-          defaultData.operator = 'equals';
-          defaultData.value = '';
-          break;
-        case 'input':
-          defaultData.text = 'Введите значение:';
-          defaultData.variable = 'user_input';
-          break;
-        case 'delay':
-          defaultData.delay_seconds = 3;
-          break;
-        case 'payment':
-          defaultData.title = 'Оплата';
-          defaultData.description = '';
-          defaultData.amount = 100;
-          defaultData.currency = 'XTR';
-          break;
-        case 'gpt':
-          defaultData.system_prompt = 'Ты полезный ассистент.';
-          defaultData.model = 'gpt-4o-mini';
-          defaultData.api_key = '';
-          break;
-        case 'webhook':
-          defaultData.url = '';
-          defaultData.method = 'POST';
-          break;
-        case 'variable':
-          defaultData.variable = '';
-          defaultData.action = 'set';
-          defaultData.value = '';
-          break;
-      }
-
       addNode({
         id,
         type,
-        position: { x: 250, y },
-        data: defaultData,
+        position,
+        data: getDefaultData(type),
       });
+      setSelectedNode(id);
     },
-    [addNode, nodes.length],
+    [addNode, screenToFlowPosition, setSelectedNode],
   );
 
   return (
-    <div className="w-56 bg-gray-900 border-r border-gray-800 p-3 overflow-y-auto">
-      <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-        Блоки
-      </h3>
-      <div className="space-y-1.5">
-        {BLOCKS.map((block) => (
-          <button
-            key={block.type}
-            onClick={() => handleAdd(block.type)}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-gray-800 transition-colors text-left group"
-          >
-            <div className={`w-2.5 h-2.5 rounded-full ${block.color} shrink-0`} />
-            <div>
-              <div className="text-sm text-gray-200 group-hover:text-white">{block.label}</div>
-              <div className="text-xs text-gray-500">{block.description}</div>
+    <div className="w-60 bg-gray-900/80 backdrop-blur-sm border-r border-gray-800 flex flex-col overflow-hidden">
+      <div className="px-3 pt-3 pb-2">
+        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+          Блоки
+        </h3>
+        {/* Search */}
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="input-field !py-1.5 !text-xs"
+          placeholder="Поиск блоков..."
+        />
+      </div>
+      <div className="flex-1 overflow-y-auto px-3 pb-3">
+        {filteredCategories.map((cat) => (
+          <div key={cat.label} className="mb-3">
+            <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1 px-1">
+              {cat.label}
+            </p>
+            <div className="space-y-1">
+              {cat.types.map((type) => {
+                const block = BLOCKS.find((b) => b.type === type);
+                if (!block) return null;
+                return (
+                  <PaletteItem
+                    key={block.type}
+                    block={block}
+                    isDragging={dragging === block.type}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                    onClick={handleClick}
+                  />
+                );
+              })}
             </div>
-          </button>
+          </div>
         ))}
+        {filteredCategories.length === 0 && (
+          <p className="text-xs text-gray-600 text-center py-6">
+            Ничего не найдено
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PaletteItem({
+  block,
+  isDragging,
+  onDragStart,
+  onDragEnd,
+  onClick,
+}: {
+  block: BlockDef;
+  isDragging: boolean;
+  onDragStart: (e: React.DragEvent, type: BotNodeType) => void;
+  onDragEnd: () => void;
+  onClick: (type: BotNodeType) => void;
+}) {
+  return (
+    <div
+      draggable
+      onDragStart={(e) => onDragStart(e, block.type)}
+      onDragEnd={onDragEnd}
+      onClick={() => onClick(block.type)}
+      className={`
+        flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-grab active:cursor-grabbing
+        border border-transparent
+        bg-gradient-to-r ${block.gradient}
+        hover:border-gray-700 hover:bg-gray-800/80
+        transition-all duration-150 select-none
+        ${isDragging ? 'opacity-40 scale-95' : 'opacity-100'}
+      `}
+    >
+      <div
+        className={`
+          w-8 h-8 rounded-lg ${block.color} bg-opacity-20
+          flex items-center justify-center text-sm shrink-0
+        `}
+      >
+        <span className="drop-shadow-sm">{block.icon}</span>
+      </div>
+      <div className="min-w-0">
+        <div className="text-sm font-medium text-gray-200 leading-tight">
+          {block.label}
+        </div>
+        <div className="text-[11px] text-gray-500 leading-tight truncate">
+          {block.description}
+        </div>
       </div>
     </div>
   );

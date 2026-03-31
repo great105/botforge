@@ -1,7 +1,7 @@
 import asyncio
 import json
 
-from anthropic import AsyncAnthropic
+from openai import AsyncOpenAI
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
@@ -11,6 +11,14 @@ from app.deps import CurrentUser, DbSession
 from app.agent.executor import AgentExecutor
 
 router = APIRouter()
+
+
+def _make_client() -> AsyncOpenAI:
+    """Create OpenAI-compatible client for OpenRouter."""
+    return AsyncOpenAI(
+        api_key=settings.OPENROUTER_API_KEY or settings.ANTHROPIC_API_KEY,
+        base_url=settings.OPENROUTER_BASE_URL,
+    )
 
 
 class GenerateRequest(BaseModel):
@@ -38,8 +46,8 @@ async def generate_schema_stream(
         "viewport": {"x": 0, "y": 0, "zoom": 1},
     }
 
-    client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
-    executor = AgentExecutor(anthropic_client=client, schema=schema)
+    client = _make_client()
+    executor = AgentExecutor(client=client, model=settings.OPENROUTER_MODEL, schema=schema)
 
     async def event_generator():
         event_queue: asyncio.Queue = asyncio.Queue()
@@ -97,8 +105,8 @@ async def modify_schema_stream(
     if not body.existing_schema:
         return {"error": "existing_schema is required for modify mode"}
 
-    client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
-    executor = AgentExecutor(anthropic_client=client, schema=body.existing_schema)
+    client = _make_client()
+    executor = AgentExecutor(client=client, model=settings.OPENROUTER_MODEL, schema=body.existing_schema)
 
     prompt = f"У меня уже есть схема бота. Вот что нужно изменить: {body.prompt}"
 
@@ -144,8 +152,8 @@ async def modify_schema_stream(
 @router.post("/chat")
 async def chat_with_agent(body: ChatRequest, user: CurrentUser):
     """Non-streaming: chat with agent about current schema."""
-    client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
-    executor = AgentExecutor(anthropic_client=client, schema=body.schema_json)
+    client = _make_client()
+    executor = AgentExecutor(client=client, model=settings.OPENROUTER_MODEL, schema=body.schema_json)
 
     result = await executor.run(user_prompt=body.prompt)
     return {"text": result["text"], "schema": result["schema"]}
